@@ -1,0 +1,71 @@
+---
+title: "Assignment Machine Learning"
+author: "Francisco Zambrano Bigiarini"
+date: "04/17/2016"
+output: html_document
+---
+
+# Summary
+
+In this assignment usign ifnormation about self movement of person the manner in which he exercise was made was predicted. For this the trainig set which has 19622 observation was dividen in 60% for training the model and 40% for validation of the model. A random forest model for tree clasification was selected and 60 variables from the total 160 was selected to train the model. The cross validation usign 10 fold was made over the training dataset. The accuracy of the model was ~100%.
+
+# Procedure
+
+The random forest method for the model was selected because its high accuracy. The testing dataset has many variables with values NA, which difficult the final prediction. Because of that, the training and testing set was filtered usign only the variables which in the test dataset has valus which has not NAs.
+```{r}
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile='training.csv')
+training <- read.csv('training.csv',row.names=1)
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile='testing.csv')
+testing <- read.csv('testing.csv',row.names=1)
+
+library(caret)
+
+set.seed(12567)
+# filter de training and test datasets for NA
+fun <- function(x){all(is.na(x))}
+
+# This variables are all NAs in the test dataset and won't be included
+ind <- which(apply(testing,2,fun))
+
+nsv <- nearZeroVar(training,saveMetrics=TRUE)
+
+ind2 <- which(names(training)%in%c("user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","num_window"))
+ind3 <- which(names(testing)%in% c("user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","num_window","problem_id"))
+
+inBuild <- createDataPartition(training$classe,p=0.6,list=FALSE)
+training <- training[inBuild,-c(ind,ind2,nsv$nzv)]
+validation <- training[-inBuild,]
+testing <- testing[,-c(ind,ind3,nsv$nzv)]
+```
+
+The for the crossvalidation we choose subset the sample in 10 folds. The the model was trained with the training dataset, usign the variable classe as outcome and the rest of the 59 variables as predictors
+
+```{r}
+# for the cross validation
+train_control<- trainControl(method="cv", number=10)
+
+modFit <- train(classe~.,method='rf',data=training, trControl=train_control)
+modFit
+```
+The resulting model has an a accuracy of 99%. Then to evaluate the in sample error the model was used to predict the training dataset.
+
+```{r}
+predTrain <- predict(modFit,training)
+confusionMatrix(predTrain,training$classe)
+```
+
+Then usign the validation dataset we evaluate the accuraccy. The model has highly accuracy on the validation dataset, cause of that the accuraccy on the test dataset most be highly accuraccy too.
+
+```{r}
+predV <- predict(modFit,validation)
+confusionMatrix(predV,validation$classe)
+```
+
+Finally, the testing dataset was used to predict the 20 values an the results are:
+
+```{r}
+predFinal <- predict(modFit,testing)
+predFinal
+```
